@@ -1,0 +1,21 @@
+{
+  "name": "msnt-webpack-multi-common-chunks-plugin",
+  "version": "0.0.1",
+  "description": "",
+  "main": "index.js",
+  "scripts": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/esjs/msnt-webpack-multi-common-chunks-plugin.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/esjs/msnt-webpack-multi-common-chunks-plugin/issues"
+  },
+  "homepage": "https://github.com/esjs/msnt-webpack-multi-common-chunks-plugin#readme",
+  "devDependencies": {
+    "webpack": "^3.6.0"
+  }
+}

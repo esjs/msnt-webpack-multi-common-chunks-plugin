@@ -1,113 +1,88 @@
+const Chunk = require('webpack/lib/Chunk');
 const CommonsChunkPlugin = require('webpack/lib/optimize/CommonsChunkPlugin');
 
 class MultiCommonChunksPlugin extends CommonsChunkPlugin {
   constructor(commonsChunkPluginParams, params) {
     super(commonsChunkPluginParams);
 
-    this.commonChunkPrefix = 'multi_common_chunk_';
+    this.commonChunkPrefix = params.commonChunkName || 'multi_common_chunk_';
     this.processOutput = params.processOutput;
   }
-  
-  apply(compiler) {
-    compiler.plugin('this-compilation', (compilation) => {
-      compilation.plugin(['optimize-chunks'], (chunks) => {
-        // only optimize once
-				if(compilation[this.ident]) return;
-        compilation[this.ident] = true;
 
-        // TODO: Investigate here we don't pass targetChunk as in original
-        // plugin, would it cause any problems later?
-        const extractableModules = this.getExtractableModules(this.minChunks, chunks);
-
-        this.updateAvailableModulesUsage(extractableModules, chunks);
-
-        let commonChunksCount = this.assignCommonIndexes(extractableModules);
-
-        let commonChunks = this.addExtractedModulesToCommonChunks(compilation, chunks, extractableModules, commonChunksCount);
-
-        const entryChunks = chunks.filter(chunk => {
-          return !chunk.name.includes(this.commonChunkPrefix);
-        });
-
-        // connect used chunks with commonChunks
-        this.makeCommonChunksTargetsOfEntryChunks(entryChunks, commonChunks);
-
-        if (this.processOutput && typeof this.processOutput === 'function') {
-          this.processOutput(entryChunks, commonChunks);
-        }
-
-        return true;
-      });
-    });
-  }
-
-  updateAvailableModulesUsage(modules, chunks) {
-    for (const modIndex in modules) {
-      let mod = modules[modIndex];
-      mod.multiCommonChunksUsedBy = [];
+  updateAvailableModulesUsage(extractableModules, chunks) {
+    for (const modIndex in extractableModules) {
+      let extractableModule = extractableModules[modIndex];
+      extractableModule.multiCommonChunksUsedBy = [];
 
       chunks.forEach(chunk => {
-        if (chunk.modulesIterable.has(mod)) {
-          mod.multiCommonChunksUsedBy.push(chunk.name);
+        if (chunk.modulesIterable.has(extractableModule)) {
+          extractableModule.multiCommonChunksUsedBy.push(chunk.name);
         }
-        /*
-        // removeChunk returns true if the chunk was contained and succesfully removed
-				// false if the module did not have a connection to the chunk in question
-        if(mod.removeChunk(chunk)) {
-          mod.multiCommonChunksUsedBy.push(chunk.name);
-        }
-        */
       })
-
     }
   }
 
-  assignCommonIndexes(modules) {
-    var index = 0,
+  assignCommonIndexes(extractableModules) {
+    var index = -1,
         commonModulesIndex = {};
 
-    modules.forEach(mod => {
-      let modKey = mod.multiCommonChunksUsedBy.join('_');
+    extractableModules.forEach(mod => {
+      let modKey = mod.multiCommonChunksUsedBy.join('_'),
+          // ExtractedModules don't have forEachChunk iterator
+          moduleChunksIterator = mod.forEachChunk ? mod.forEachChunk : mod.chunks.forEach.bind(mod.chunks);
 
       if (mod.multiCommonChunksUsedBy.length === 1) return;
-
-
+      
       if (!commonModulesIndex.hasOwnProperty(modKey)) {
-        mod.multiCommonChunkId = index;
-
-        // add list of required commonChunks to entryChunks
-        mod.chunks.forEach(function(chunk) {
-          mod.removeChunk(chunk);
-
-          if (!chunk.multiCommonChunksRequired) {
-            chunk.multiCommonChunksRequired = [];
-          }
-          chunk.multiCommonChunksRequired.push(index);
-        });
-
-        commonModulesIndex[modKey] = index++;
+        mod.multiCommonChunkId = ++index;
+        commonModulesIndex[modKey] = index;
       } else {
         mod.multiCommonChunkId = commonModulesIndex[modKey];
       }
+
+      // add list of required commonChunks to entryChunks
+      moduleChunksIterator(function(chunk) {
+        if (!chunk.multiCommonChunksRequired) {
+          chunk.multiCommonChunksRequired = [];
+        }
+        if (!chunk.multiCommonChunksRequired.includes(index)) {
+          chunk.multiCommonChunksRequired.push(index);
+        }
+
+        // store 
+        if (!chunk.multiCommonChunksExtractModules) {
+          chunk.multiCommonChunksExtractModules = {};
+        }
+        if (!chunk.multiCommonChunksExtractModules[index]) {
+          chunk.multiCommonChunksExtractModules[index] = [];
+        }
+        chunk.multiCommonChunksExtractModules[index].push(mod);
+      });
     });
 
     // return common chunks count
-    return index;
+    return index + 1;
   }
 
-  addExtractedModulesToCommonChunks(compilation, chunks, modules, commonChunksCount) {
+  addExtractedModulesToCommonChunks(compilation, chunks, extractableModules, commonChunksCount, addToCompilation) {
     var commonChunks = [];
-
-    // modules (Array) -> jquery, commonn, ...
-    // chunks (Array) -> files from entries
-
+    
     // create chunks for common modules
     for (let i = 0; i < commonChunksCount; i++) {
-      commonChunks.push(compilation.addChunk(`${this.commonChunkPrefix}${i}`));
+      let newChunk = new Chunk(`${this.commonChunkPrefix}${i}`);
+
+      if (addToCompilation) {
+        compilation.addChunk(newChunk);
+      }
+
+      commonChunks.push(newChunk);
     }
 
-    modules.forEach(module => {
+    extractableModules.forEach(module => {
       let chunk = commonChunks[module.multiCommonChunkId];
+
+      // if module don't belogn to any common chunk, skip it
+      if (!chunk) return;
 
       chunk.addModule(module);
       module.addChunk(chunk);

@@ -1,6 +1,6 @@
 {
   "name": "msnt-webpack-multi-common-chunks-plugin",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {},
@@ -15,7 +15,8 @@
     "url": "https://github.com/esjs/msnt-webpack-multi-common-chunks-plugin/issues"
   },
   "homepage": "https://github.com/esjs/msnt-webpack-multi-common-chunks-plugin#readme",
-  "devDependencies": {
-    "webpack": "^3.6.0"
+  "dependencies": {
+    "webpack": "^3.6.0",
+    "extract-text-webpack-plugin": "^3.0.1"
   }
 }

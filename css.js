@@ -63,8 +63,6 @@ class MultiCommonChunksCSS extends MultiCommonChunksBase {
   }
 
   addImportsForExtractedModules(extractedChunks) {
-    debugger;
-
     extractedChunks.forEach(extractedChunk => {
       if (!extractedChunk.multiCommonChunksExtractModules) return;
       var newExtractedChunkModules = new SortableSet();

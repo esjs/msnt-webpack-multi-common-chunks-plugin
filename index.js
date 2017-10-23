@@ -29,7 +29,7 @@ class MultiCommonChunksPlugin extends CommonsChunkPlugin {
     extractableModules.forEach(mod => {
       let modKey = mod.multiCommonChunksUsedBy.join('_'),
           // ExtractedModules don't have forEachChunk iterator
-          moduleChunksIterator = mod.forEachChunk ? mod.forEachChunk : mod.chunks.forEach.bind(mod.chunks);
+          moduleChunksIterator = mod.forEachChunk ? mod.forEachChunk.bind(mod) : mod.chunks.forEach.bind(mod.chunks);
 
       if (mod.multiCommonChunksUsedBy.length === 1) return;
       
@@ -69,10 +69,13 @@ class MultiCommonChunksPlugin extends CommonsChunkPlugin {
     
     // create chunks for common modules
     for (let i = 0; i < commonChunksCount; i++) {
-      let newChunk = new Chunk(`${this.commonChunkPrefix}${i}`);
+      let newChunkName = `${this.commonChunkPrefix}${i}`,
+          newChunk;
 
       if (addToCompilation) {
-        compilation.addChunk(newChunk);
+        newChunk = compilation.addChunk(newChunkName);
+      } else {
+        newChunk = new Chunk(newChunkName);
       }
 
       commonChunks.push(newChunk);

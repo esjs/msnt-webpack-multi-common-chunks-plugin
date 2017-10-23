@@ -15,6 +15,8 @@ class MultiCommonChunksJS extends MultiCommonChunksBase {
 
         let commonChunksCount = this.assignCommonIndexes(extractableModules);
 
+        this.removeExtractedModules(chunks);
+
         var commonChunks = this.addExtractedModulesToCommonChunks(compilation, chunks, extractableModules, commonChunksCount, true);
 
         var entryChunks = chunks.filter(chunk => {
@@ -28,6 +30,20 @@ class MultiCommonChunksJS extends MultiCommonChunksBase {
           this.processOutput(entryChunks, commonChunks);
         }
       });
+    });
+  }
+
+  removeExtractedModules(chunks) {
+    chunks.forEach(extractedChunk => {
+      if (!extractedChunk.multiCommonChunksExtractModules) return;
+
+      for (let index in extractedChunk.multiCommonChunksExtractModules) {
+        var extractedModules = extractedChunk.multiCommonChunksExtractModules[index];
+
+        extractedModules.forEach(extractedModule => {
+          extractedModule.removeChunk(extractedChunk);
+        });
+      }
     });
   }
 }

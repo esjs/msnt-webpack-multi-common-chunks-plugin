@@ -78,9 +78,7 @@ class MultiCommonChunksCSS extends MultiCommonChunksBase {
 
         newExtractedChunkModules.add(
           new ExtractedModule.default(
-            // 0000 hack required to prevent wrong order on sorting in
-            // inside extract-text-webpack-plugin additional-assets
-            `0000-multi-common-chunk-import-module-${index}`,
+            `multi-common-chunk-import-module-${index}`,
             extractedModules[0],
             `@import "${importPath}";\n`,
             null,

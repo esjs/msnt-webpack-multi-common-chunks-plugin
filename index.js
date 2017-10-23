@@ -78,6 +78,9 @@ class MultiCommonChunksPlugin extends CommonsChunkPlugin {
         newChunk = new Chunk(newChunkName);
       }
 
+      // prevent sorting for common chunks
+      newChunk.sortModules = function() {}
+
       commonChunks.push(newChunk);
     }
 

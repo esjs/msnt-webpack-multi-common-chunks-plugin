@@ -28,6 +28,8 @@ class MultiCommonChunksCSS extends MultiCommonChunksBase {
         commonChunks = this.addExtractedModulesToCommonChunks(compilation, extractedChunks, extractableModules, commonChunksCount);
 
         entryChunks = extractedChunks.filter(chunk => {
+          // prevent sorting on extracted chunk modules
+          chunk.sortModules = function() {}
           return !chunk.name.includes(this.commonChunkPrefix);
         });
 
@@ -78,6 +80,8 @@ class MultiCommonChunksCSS extends MultiCommonChunksBase {
 
         newExtractedChunkModules.add(
           new ExtractedModule.default(
+            // 0000 hack required to prevent wrong order on sorting in
+            // inside extract-text-webpack-plugin additional-assets
             `multi-common-chunk-import-module-${index}`,
             extractedModules[0],
             `@import "${importPath}";\n`,

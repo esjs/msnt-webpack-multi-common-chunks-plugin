@@ -9,17 +9,29 @@ class MultiCommonChunksJS extends MultiCommonChunksBase {
         if(compilation[this.ident]) return;
         compilation[this.ident] = true;
 
-        const extractableModules = this.getExtractableModules(this.minChunks, chunks);
+        const affectedChunks = this.getAffectedChunks(
+          compilation,
+          chunks,
+          {parents: []}, // fake target chunk to 
+          [], // fake targetChunks
+          0, // index of current targetChunk
+          null, // selectedChunks
+          false, // async
+          this.children
+        );
 
-        this.updateAvailableModulesUsage(extractableModules, chunks);
+        const extractableModules = this.getExtractableModules(this.minChunks, affectedChunks);
+
+        this.updateAvailableModulesUsage(extractableModules, affectedChunks);
 
         let commonChunksCount = this.assignCommonIndexes(extractableModules);
 
-        this.removeExtractedModules(chunks);
+        this.removeExtractedModules(affectedChunks);
 
-        var commonChunks = this.addExtractedModulesToCommonChunks(compilation, chunks, extractableModules, commonChunksCount, true);
+        var commonChunks = this.addExtractedModulesToCommonChunks(compilation, affectedChunks, extractableModules, commonChunksCount, true);
 
-        var entryChunks = chunks.filter(chunk => {
+        
+        var entryChunks = affectedChunks.filter(chunk => {
           return !chunk.name.includes(this.commonChunkPrefix);
         });
 

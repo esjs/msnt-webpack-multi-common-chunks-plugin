@@ -96,6 +96,8 @@ class MultiCommonChunksPlugin extends CommonsChunkPlugin {
 
   makeCommonChunksTargetsOfEntryChunks(chunks, commonChunks) {
     chunks.forEach(chunk => {
+      if (!chunk.multiCommonChunksRequired) return;
+
       chunk.multiCommonChunksRequired.forEach(requiredCommmonChunkIndex => {
         var commonChunk = commonChunks[requiredCommmonChunkIndex];
 

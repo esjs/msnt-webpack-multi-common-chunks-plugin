@@ -15,7 +15,29 @@ class MultiCommonChunksCSS extends MultiCommonChunksBase {
 
     const extension = 'css';
 
-    compiler.plugin('this-compilation', (compilation) => {  
+    // HACK!!!
+    // required for postcss-reexport plugin to work properly with Webpack
+    // remember chaged file, we will need it later to fix issue with
+    // files created during build operation in postcss-temp
+    // the problem is that modified time on those file is simetimes lower 
+    // than module build time, and this prevents module rebuild
+    var fileChanged;
+    compiler.plugin('invalid', (filename, changeTime) => {
+      if (filename.includes('postcss-temp')) {
+        fileChanged = filename;
+      }
+    });
+
+    compiler.plugin('this-compilation', (compilation) => {
+      if (fileChanged) {
+        // HACK!!!
+        // required for postcss-reexport plugin to work properly with Webpack
+        // by changing modified time of changed file, we can be sure that module
+        // will be rebuild
+        compilation.fileTimestamps[fileChanged] = compilation.fileTimestamps[fileChanged] * 1000;
+        fileChanged = null;
+      }
+
       compilation.plugin(['optimize-extracted-chunks'], (extractedChunks) => {
         const extractableModules = this.getExtractableModules(this.minChunks, extractedChunks);
 

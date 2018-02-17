@@ -1,11 +1,14 @@
 const Chunk = require('webpack/lib/Chunk');
 const CommonsChunkPlugin = require('webpack/lib/optimize/CommonsChunkPlugin');
 
+const loaderUtils = require('loader-utils');
+
 class MultiCommonChunksPlugin extends CommonsChunkPlugin {
   constructor(commonsChunkPluginParams, params) {
     super(commonsChunkPluginParams);
 
     this.commonChunkPrefix = params.commonChunkName || 'multi_common_chunk_';
+    this.outputName = params.outputName || '[name].[ext]';
     this.processOutput = params.processOutput;
   }
 
@@ -20,6 +23,17 @@ class MultiCommonChunksPlugin extends CommonsChunkPlugin {
         }
       })
     }
+  }
+
+  getPath(source, options) {
+    // "/" required for interpolateName to change "name"
+    const resourcePath = `/${this.commonChunkPrefix}${options.index}.${this.extension}`;
+
+    return loaderUtils.interpolateName({
+      resourcePath
+    }, this.outputName, {
+      content: source,
+    });
   }
 
   assignCommonIndexes(extractableModules) {

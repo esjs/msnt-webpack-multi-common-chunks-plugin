@@ -13,7 +13,7 @@ class MultiCommonChunksCSS extends MultiCommonChunksBase {
     var entryChunks,
         commonChunks;
 
-    const extension = 'css';
+    const extension = this.extension = 'css';
 
     // HACK!!!
     // required for postcss-reexport plugin to work properly with Webpack
@@ -22,13 +22,13 @@ class MultiCommonChunksCSS extends MultiCommonChunksBase {
     // the problem is that modified time on those file is simetimes lower 
     // than module build time, and this prevents module rebuild
     var fileChanged;
-    compiler.plugin('invalid', (filename, changeTime) => {
+    compiler.plugin('invalid', (filename, changeTime) => {  
       if (filename.includes('postcss-temp')) {
         fileChanged = filename;
       }
     });
 
-    compiler.plugin('this-compilation', (compilation) => {
+    compiler.plugin('this-compilation', (compilation) => {  
       if (fileChanged) {
         // HACK!!!
         // required for postcss-reexport plugin to work properly with Webpack
@@ -37,7 +37,7 @@ class MultiCommonChunksCSS extends MultiCommonChunksBase {
         compilation.fileTimestamps[fileChanged] = compilation.fileTimestamps[fileChanged] * 1000;
         fileChanged = null;
       }
-
+      
       compilation.plugin(['optimize-extracted-chunks'], (extractedChunks) => {
         const extractableModules = this.getExtractableModules(this.minChunks, extractedChunks);
 
@@ -54,10 +54,6 @@ class MultiCommonChunksCSS extends MultiCommonChunksBase {
           chunk.sortModules = function() {}
           return !chunk.name.includes(this.commonChunkPrefix);
         });
-
-        if (this.processOutput && typeof this.processOutput === 'function') {
-          this.processOutput(entryChunks, commonChunks);
-        }
       });
 
       compilation.plugin("additional-assets", callback => {
@@ -74,14 +70,18 @@ class MultiCommonChunksCSS extends MultiCommonChunksBase {
           });
 
 
-          var filename = `${commonChunk.name}.${extension}`;
-          var source = ExtractTextPlugin.renderExtractedChunk(commonChunk);
+          const source = ExtractTextPlugin.renderExtractedChunk(commonChunk);
+          const outputFileName = this.getPath(source.source(), {index: commonChunkIndex});
 
-          compilation.assets[filename] = source;
-          targetEntryChunk.files.push(filename);
+          compilation.assets[outputFileName] = source;
+          targetEntryChunk.files.push(outputFileName);
         });
 
         callback();
+
+        if (this.processOutput && typeof this.processOutput === 'function') {
+          this.processOutput(entryChunks, commonChunks);
+        }
       });
     });
   }
@@ -98,15 +98,17 @@ class MultiCommonChunksCSS extends MultiCommonChunksBase {
           extractedModule.removeChunk(extractedChunk);
         });
 
-        var importPath = path.basename(`${this.commonChunkPrefix}${index}.css`);
+        const extractedModulesSource = extractedModules
+          .map(mod => mod.source().source())
+          .join('');
+
+        const outputFileName = this.getPath(extractedModulesSource, {index});
 
         newExtractedChunkModules.add(
           new ExtractedModule.default(
-            // 0000 hack required to prevent wrong order on sorting in
-            // inside extract-text-webpack-plugin additional-assets
             `multi-common-chunk-import-module-${index}`,
             extractedModules[0],
-            `@import "${importPath}";\n`,
+            `@import "${outputFileName}";\n`,
             null,
             [],
             ""

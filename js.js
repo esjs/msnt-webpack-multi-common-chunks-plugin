@@ -2,6 +2,9 @@ const MultiCommonChunksBase = require('./index');
 
 class MultiCommonChunksJS extends MultiCommonChunksBase {
   apply(compiler) {
+    var entryChunks,
+        commonChunks;
+
     compiler.plugin('this-compilation', (compilation) => {
 
       compilation.plugin(['optimize-chunks'], (chunks) => {
@@ -28,16 +31,20 @@ class MultiCommonChunksJS extends MultiCommonChunksBase {
 
         this.removeExtractedModules(affectedChunks);
 
-        var commonChunks = this.addExtractedModulesToCommonChunks(compilation, affectedChunks, extractableModules, commonChunksCount, true);
-
+        commonChunks = this.addExtractedModulesToCommonChunks(compilation, affectedChunks, extractableModules, commonChunksCount, true);
         
-        var entryChunks = affectedChunks.filter(chunk => {
+        entryChunks = affectedChunks.filter(chunk => {
           return !chunk.name.includes(this.commonChunkPrefix);
         });
 
         // connect used chunks with commonChunks
         this.makeCommonChunksTargetsOfEntryChunks(entryChunks, commonChunks);
 
+      });
+
+      compilation.plugin("additional-assets", callback => {
+        callback();
+        
         if (this.processOutput && typeof this.processOutput === 'function') {
           this.processOutput(entryChunks, commonChunks);
         }

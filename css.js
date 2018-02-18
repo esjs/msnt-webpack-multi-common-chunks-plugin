@@ -8,6 +8,8 @@ const SortableSet = require("webpack/lib/util/SortableSet");
 
 const MultiCommonChunksBase = require('./index');
 
+const webpackSources = require('webpack-sources');
+
 class MultiCommonChunksCSS extends MultiCommonChunksBase {
   apply(compiler) {
     var entryChunks,
@@ -60,7 +62,20 @@ class MultiCommonChunksCSS extends MultiCommonChunksBase {
         commonChunks.forEach((commonChunk, commonChunkIndex) => {
           var targetEntryChunk;
           
+          const source = ExtractTextPlugin.renderExtractedChunk(commonChunk);
+          const outputFileName = this.getPath(source.source(), {index: commonChunkIndex});
+
           entryChunks.forEach(entryChunk => {
+            // add correct import statement, with correct [hash] to all entry chunks
+            entryChunk.forEachModule(mod => {
+              if (
+                !mod.multiCommonChunkIndex ||
+                mod.multiCommonChunkIndex !== commonChunkIndex
+              ) return;
+
+              mod._source = `@import "${outputFileName}";\n`;
+            });
+            
             if (targetEntryChunk) return;
             if (
               entryChunk.multiCommonChunksRequired && entryChunk.multiCommonChunksRequired.includes(commonChunkIndex)
@@ -68,10 +83,6 @@ class MultiCommonChunksCSS extends MultiCommonChunksBase {
               targetEntryChunk = entryChunk.originalChunk;
             }
           });
-
-
-          const source = ExtractTextPlugin.renderExtractedChunk(commonChunk);
-          const outputFileName = this.getPath(source.source(), {index: commonChunkIndex});
 
           compilation.assets[outputFileName] = source;
           targetEntryChunk.files.push(outputFileName);
@@ -98,22 +109,22 @@ class MultiCommonChunksCSS extends MultiCommonChunksBase {
           extractedModule.removeChunk(extractedChunk);
         });
 
-        const extractedModulesSource = extractedModules
-          .map(mod => mod.source().source())
-          .join('');
+        const importModule = new ExtractedModule.default(
+          `multi-common-chunk-import-module-${index}`,
+          extractedModules[0],
+          // `@import "${outputFileName}";\n`,
 
-        const outputFileName = this.getPath(extractedModulesSource, {index});
-
-        newExtractedChunkModules.add(
-          new ExtractedModule.default(
-            `multi-common-chunk-import-module-${index}`,
-            extractedModules[0],
-            `@import "${outputFileName}";\n`,
-            null,
-            [],
-            ""
-          )
+          // add empty source for now, we will update it, when final module
+          // structure is available (in "additional-assets" plugin)
+          '',
+          null,
+          [],
+          ""
         );
+
+        importModule.multiCommonChunkIndex = +index;
+
+        newExtractedChunkModules.add(importModule);
       }
 
       extractedChunk.modules.forEach(mod => newExtractedChunkModules.add(mod));

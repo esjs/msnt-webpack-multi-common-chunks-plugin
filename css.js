@@ -69,7 +69,7 @@ class MultiCommonChunksCSS extends MultiCommonChunksBase {
             // add correct import statement, with correct [hash] to all entry chunks
             entryChunk.forEachModule(mod => {
               if (
-                !mod.multiCommonChunkIndex ||
+                mod.multiCommonChunkIndex === undefined ||
                 mod.multiCommonChunkIndex !== commonChunkIndex
               ) return;
 

@@ -5,6 +5,8 @@ class MultiCommonChunksJS extends MultiCommonChunksBase {
     var entryChunks,
         commonChunks;
 
+    const extension = this.extension = 'js';
+
     compiler.plugin('this-compilation', (compilation) => {
 
       compilation.plugin(['optimize-chunks'], (chunks) => {
@@ -27,19 +29,28 @@ class MultiCommonChunksJS extends MultiCommonChunksBase {
 
         this.updateAvailableModulesUsage(extractableModules, affectedChunks);
 
-        let commonChunksCount = this.assignCommonIndexes(extractableModules);
+        const commonChunksCount = this.assignCommonIndexes(extractableModules);
 
         this.removeExtractedModules(affectedChunks);
 
-        commonChunks = this.addExtractedModulesToCommonChunks(compilation, affectedChunks, extractableModules, commonChunksCount, true);
-        
+        commonChunks = this.createCommonChunks(extractableModules, commonChunksCount);
+
         entryChunks = affectedChunks.filter(chunk => {
           return !chunk.name.includes(this.commonChunkPrefix);
         });
 
+        if (this.minSize) {
+          commonChunks = this.mergeSmallCommonChunks(commonChunks, entryChunks);
+        }
+
+        // add chunks to compilation manually, we cannot use addModule method here
+        // because it creates chunk and we need to add existing one
+        commonChunks.forEach(chunk => {
+          compilation.chunks.push(chunk);
+        });
+
         // connect used chunks with commonChunks
         this.makeCommonChunksTargetsOfEntryChunks(entryChunks, commonChunks);
-
       });
 
       compilation.plugin("additional-assets", callback => {
@@ -52,17 +63,32 @@ class MultiCommonChunksJS extends MultiCommonChunksBase {
     });
   }
 
-  removeExtractedModules(chunks) {
-    chunks.forEach(extractedChunk => {
-      if (!extractedChunk.multiCommonChunksExtractModules) return;
+  makeCommonChunksTargetsOfEntryChunks(entryChunks, commonChunks) {
+    entryChunks.forEach(chunk => {
+      if (!chunk.multiCommonChunksRequired) return;
 
-      for (let index in extractedChunk.multiCommonChunksExtractModules) {
-        var extractedModules = extractedChunk.multiCommonChunksExtractModules[index];
+      chunk.multiCommonChunksRequired.forEach(commonChunkIndex => {
+        // var commonChunk = commonChunks[commonChunkIndex];
+        var targetCommonChunk;
 
-        extractedModules.forEach(extractedModule => {
-          extractedModule.removeChunk(extractedChunk);
+        commonChunks.forEach(commonChunk => {
+          if (
+            commonChunk.multiCommonChunkIndex !== commonChunkIndex
+          ) return;
+
+          targetCommonChunk = commonChunk;
         });
-      }
+
+        // set targetCommonChunk as new sole parent
+        chunk.parents = [targetCommonChunk];
+        
+        // add chunk to targetCommonChunk
+        targetCommonChunk.addChunk(chunk);
+
+        for(const entrypoint of chunk.entrypoints) {
+          entrypoint.insertChunk(targetCommonChunk, chunk);
+        }
+      });
     });
   }
 }

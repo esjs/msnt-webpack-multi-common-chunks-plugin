@@ -70,6 +70,9 @@ class MultiCommonChunksPlugin extends CommonsChunkPlugin {
       });
     }
 
+    // TODO: sort entry chunks by total small chunk size (or by small chunks count???)
+    // this way we would get maximum value from merging
+
     // we need to loop through all required commonchunks of entry chunk
     // and merge those that are in smallCommmonChunks array
     entryChunks.forEach(entryChunk => {
@@ -100,19 +103,6 @@ class MultiCommonChunksPlugin extends CommonsChunkPlugin {
           
           entryChunk.multiCommonChunksRequired.splice(index, 1);
         })
-      });
-
-      // if entryChunk contain small merged chunks we need to merge them
-      smallMergedChunks.forEach(smallChunkId => {
-        const index = entryChunk.multiCommonChunksRequired.indexOf(smallChunkId);
-
-        if (index === -1) return;
-
-        entryChunk.multiCommonChunksRequired.splice(index, 1);
-
-        moveSmallCommonChunkIntoEntry(
-          entryChunk, this.getCommonChunkByCommonIndex(commonChunks, smallChunkId)
-        );
       });
 
       if (!smallCommonChunks.length) return;
@@ -147,17 +137,7 @@ class MultiCommonChunksPlugin extends CommonsChunkPlugin {
       // if there are no required small chunks to merge, continue...
       if (!chunksToMerge.length) return;
 
-      const mainChunk = chunksToMerge.shift();
-
-      // unlink modules from old chunk, and link to target merge chunk
-      chunksToMerge.forEach(chunk => {
-        chunk.forEachModule(mod => {
-          mod.removeChunk(chunk);
-
-          mainChunk.addModule(mod);
-          mod.addChunk(mainChunk);
-        });
-      });
+      const mainChunk = this.mergeChunksIntoFirst(chunksToMerge);
 
       removedChunkBlocks.push(newRemovedChunkIds);
 
@@ -168,19 +148,63 @@ class MultiCommonChunksPlugin extends CommonsChunkPlugin {
 
       // if merged chunk is still not large enough
       if (this.getChunkSize(mainChunk) < this.minSize) {
-        smallMergedChunks.push(mainChunk.multiCommonChunkIndex);
-
-        const index = entryChunk.multiCommonChunksRequired.indexOf(mainChunk.multiCommonChunkIndex);
-
-        entryChunk.multiCommonChunksRequired.splice(index, 1);
-
-        moveSmallCommonChunkIntoEntry(entryChunk, mainChunk);
+        smallMergedChunks.push(mainChunk);
       } else {
         bigCommonChunks.push(mainChunk);
       }
     });
 
+    // if after all merge operations there are still small chunks
+    // merge all of them into one and update entry chunks to use it 
+    if (smallMergedChunks.length) {
+      bigCommonChunks.push(this.mergeSmallMergedChunks(entryChunks, smallMergedChunks));
+    }
+    
     return bigCommonChunks;
+  }
+  
+  mergeSmallMergedChunks(entryChunks, smallMergedChunks) {
+    const removeChunkIds = smallMergedChunks.map(chunk => chunk.multiCommonChunkIndex),
+      mainChunkId = removeChunkIds.shift();
+    
+    // we need to remove all merged chunks and left only chunk we merged into
+    entryChunks.forEach(entryChunk => {
+      let chunkRemoved = false;
+
+      removeChunkIds.forEach(removeChunkId => {
+        const index = entryChunk.multiCommonChunksRequired.indexOf(removeChunkId);
+
+        if (index === -1) return;
+
+        chunkRemoved = true;
+        entryChunk.multiCommonChunksRequired.splice(index, 1);
+      });
+
+      if (!chunkRemoved) return;
+      
+      // add required target chunk only if entryChunk doesn't have it 
+      if (!entryChunk.multiCommonChunksRequired.includes(mainChunkId)) {
+        entryChunk.multiCommonChunksRequired.push(mainChunkId);
+      }
+    });
+
+    return this.mergeChunksIntoFirst(smallMergedChunks);
+  }
+
+  mergeChunksIntoFirst(chunks) {
+    const mainChunk = chunks.shift();
+
+    // unlink modules from old chunk, and link to target merge chunk
+    chunks.forEach(chunk => {
+      chunk.forEachModule(mod => {
+        mod.removeChunk(chunk);
+
+        mainChunk.addModule(mod);
+        mod.addChunk(mainChunk);
+      });
+    });
+
+    return mainChunk;
   }
 
   getChunkSize(chunk) {

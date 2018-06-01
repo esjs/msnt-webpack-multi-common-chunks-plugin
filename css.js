@@ -107,7 +107,7 @@ class MultiCommonChunksCSS extends MultiCommonChunksBase {
 
   addImportsForExtractedModules(entryChunks) {
     entryChunks.forEach(entryChunk => {
-      const requiredCommonChunks = entryChunk.multiCommonChunksRequired;
+      const requiredCommonChunks = entryChunk.multiCommonChunksRequired || [];
       const entryChunkModulesWithImports = new SortableSet();
       const entryChunkModules = entryChunk.getModules();
 

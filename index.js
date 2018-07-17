@@ -91,6 +91,10 @@ class MultiCommonChunksPlugin extends CommonsChunkPlugin {
             chunkAddedFlag = true;
             let targetRemovedChunkId = removedChunksMap[removedChunkId];
 
+            if (!entryChunk.multiCommonChunksRequired) {
+              console.log('entryChunk.name => ', entryChunk.name);
+            }
+
             // add required target chunk only if entryChunk doesn't have it 
             if (!entryChunk.multiCommonChunksRequired.includes(targetRemovedChunkId)) {
               entryChunk.multiCommonChunksRequired.push(targetRemovedChunkId);
